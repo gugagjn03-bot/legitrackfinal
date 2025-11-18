@@ -30,7 +30,7 @@ with c2:
     ano_val = st.number_input("Ano (opcional)", min_value=1990, max_value=2100, value=2025, step=1)
     usar_ano = st.checkbox("Filtrar por ano", value=True)
 
-itens = st.sidebar.slider("Quantidade de resultados", min_value=10, max_value=200, value=80, step=10)
+itens = st.sidebar.slider("Quantidade de resultados (da API)", min_value=10, max_value=200, value=50, step=10)
 btn_buscar = st.sidebar.button("Buscar proposições", use_container_width=True)
 
 # ============== Título ==============
@@ -45,24 +45,24 @@ if btn_buscar:
 
     try:
         with st.spinner("Consultando dados abertos da Câmara..."):
-            # 1) Busca na API por tipo/ano (sem passar 'ementa' pra API)
+            # 1) Busca na API SOMENTE por tipo/ano (sem termo)
             dados = buscar_proposicoes(
-                termo.strip(),  # ainda passamos o termo para a função, mas só para uso interno se quisermos
                 ano_val if usar_ano else None,
                 tipo,
                 itens
             )
             df = df_proposicoes(dados)
 
-            # 2) Filtro pelo termo na coluna 'ementa' (AGORA no lado do Python)
-            if termo.strip():
-                df = df[df["ementa"].str.contains(termo.strip(), case=False, na=False)]
+            # 2) Filtro pelo termo na coluna 'ementa' (lado do Python)
+            termo_busca = termo.strip()
+            if termo_busca:
+                df = df[df["ementa"].str.contains(termo_busca, case=False, na=False)]
 
         if df.empty:
             st.info("Nenhum resultado para os filtros selecionados (após filtrar pela palavra-chave na ementa).")
             st.stop()
 
-        # Enriquecer com autor principal (chamadas extras; em listas grandes, considere throttling)
+        # Enriquecer com autor principal
         autores: List[str] = []
         partidos: List[str] = []
         ufs: List[str] = []
@@ -164,7 +164,6 @@ if btn_buscar:
                 tdf = pd.DataFrame(tram)
                 tdf["dataHora"] = tdf["dataHora"].apply(parse_date)
                 tdf = tdf.dropna(subset=["dataHora"]).sort_values("dataHora")
-                # melhor descrição disponível
                 tdf["evento"] = tdf["descricaoSituacao"].fillna(tdf["despacho"]).fillna("(sem descrição)")
                 tdf["data"] = tdf["dataHora"].dt.date
 
@@ -199,4 +198,3 @@ else:
 
 st.markdown("---")
 st.markdown("**Participantes do grupo:** Gustavo Jardim • Pedro Henrique Bastos • Sávio Verbicário")
-
