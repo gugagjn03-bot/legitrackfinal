@@ -45,18 +45,29 @@ if btn_buscar:
 
     try:
         with st.spinner("Consultando dados abertos da Câmara..."):
-            dados = buscar_proposicoes(termo.strip(), ano_val if usar_ano else None, tipo, itens)
+            # 1) Busca na API por tipo/ano (sem passar 'ementa' pra API)
+            dados = buscar_proposicoes(
+                termo.strip(),  # ainda passamos o termo para a função, mas só para uso interno se quisermos
+                ano_val if usar_ano else None,
+                tipo,
+                itens
+            )
             df = df_proposicoes(dados)
 
+            # 2) Filtro pelo termo na coluna 'ementa' (AGORA no lado do Python)
+            if termo.strip():
+                df = df[df["ementa"].str.contains(termo.strip(), case=False, na=False)]
+
         if df.empty:
-            st.info("Nenhum resultado para os filtros selecionados.")
+            st.info("Nenhum resultado para os filtros selecionados (após filtrar pela palavra-chave na ementa).")
             st.stop()
 
         # Enriquecer com autor principal (chamadas extras; em listas grandes, considere throttling)
-        autores = []
-        partidos = []
-        ufs = []
-        tipos_autor = []
+        autores: List[str] = []
+        partidos: List[str] = []
+        ufs: List[str] = []
+        tipos_autor: List[str] = []
+
         for _, row in df.iterrows():
             aut_payload = autores_por_uri(row.get("uriAutores", ""))
             a = extrair_autor_principal(aut_payload)
@@ -73,9 +84,20 @@ if btn_buscar:
 
         st.subheader("Resultados")
         st.dataframe(
-            df[["rotulo", "ementa", "autor", "partido", "uf",
-                "situacao", "tramitacao_atual", "data_status", "dias_desde_status", "link"]],
-            use_container_width=True, hide_index=True
+            df[[
+                "rotulo",
+                "ementa",
+                "autor",
+                "partido",
+                "uf",
+                "situacao",
+                "tramitacao_atual",
+                "data_status",
+                "dias_desde_status",
+                "link",
+            ]],
+            use_container_width=True,
+            hide_index=True,
         )
 
         # Downloads
@@ -129,8 +151,10 @@ if btn_buscar:
             st.markdown(f"**Situação:** {row['situacao'] or '—'}")
             st.markdown(f"**Tramitação atual:** {row['tramitacao_atual'] or '—'}")
             if row["data_status"]:
-                st.markdown(f"**Data do status:** {row['data_status'].date().isoformat()} "
-                            f"({row['dias_desde_status']} dia(s) atrás)")
+                st.markdown(
+                    f"**Data do status:** {row['data_status'].date().isoformat()} "
+                    f"({row['dias_desde_status']} dia(s) atrás)"
+                )
             st.markdown(f"[🔗 Página oficial]({row['link']})")
 
         with cB:
@@ -156,8 +180,11 @@ if btn_buscar:
 
                 with st.expander("Ver eventos (tabela)"):
                     st.dataframe(
-                        tdf[["data", "evento", "orgaoDestino.sigla"]].rename(columns={"orgaoDestino.sigla": "órgão destino"}),
-                        use_container_width=True, hide_index=True
+                        tdf[["data", "evento", "orgaoDestino.sigla"]].rename(
+                            columns={"orgaoDestino.sigla": "órgão destino"}
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
                     )
             else:
                 st.info("Sem dados de tramitação disponíveis para esta proposição.")
