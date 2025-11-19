@@ -233,67 +233,54 @@ if btn_buscar:
             st.markdown(f"[🔗 Página oficial]({row['link']})")
 
         with cB:
-            with st.spinner("Carregando tramitações..."):
-                tram = tramitacoes(int(row["id"]))
-            if tram:
-                tdf = pd.DataFrame(tram)
-                tdf["dataHora"] = tdf["dataHora"].apply(parse_date)
-                tdf = tdf.dropna(subset=["dataHora"]).sort_values("dataHora")
-                tdf["evento"] = (
-                    tdf["descricaoSituacao"]
-                    .fillna(tdf["despacho"])
-                    .fillna("(sem descrição)")
+                   with st.spinner("Carregando tramitações..."):
+            tram = tramitacoes(int(row["id"]))
+
+        if tram:
+            tdf = pd.DataFrame(tram)
+            tdf["dataHora"] = tdf["dataHora"].apply(parse_date)
+            tdf = tdf.dropna(subset=["dataHora"]).sort_values("dataHora")
+            tdf["evento"] = (
+                tdf["descricaoSituacao"]
+                .fillna(tdf.get("despacho"))
+                .fillna("(sem descrição)")
+            )
+            tdf["data"] = tdf["dataHora"].dt.date
+
+            fig_t = px.scatter(
+                tdf,
+                x="dataHora",
+                y=["evento"],
+                title="Linha do tempo da tramitação",
+                hover_data={"evento": True, "dataHora": "|%Y-%m-%d %H:%M"},
+            )
+            fig_t.update_layout(showlegend=False, yaxis_title=None, xaxis_title=None)
+            st.plotly_chart(fig_t, use_container_width=True)
+
+            with st.expander("Ver eventos (tabela)"):
+                # Nem sempre a API traz o órgão no mesmo campo.
+                colunas_base = ["data", "evento"]
+                coluna_orgao = None
+
+                # Tentamos identificar alguma coluna que represente órgão de destino
+                for cand in ["orgaoDestino.sigla", "siglaOrgao", "siglaOrgaoDestino"]:
+                    if cand in tdf.columns:
+                        coluna_orgao = cand
+                        break
+
+                if coluna_orgao:
+                    cols = colunas_base + [coluna_orgao]
+                    tabela = tdf[cols].rename(columns={coluna_orgao: "órgão"})
+                else:
+                    tabela = tdf[colunas_base]
+
+                st.dataframe(
+                    tabela,
+                    use_container_width=True,
+                    hide_index=True,
                 )
-                tdf["data"] = tdf["dataHora"].dt.date
-
-                fig_t = px.scatter(
-                    tdf,
-                    x="dataHora",
-                    y=["evento"],
-                    title="Linha do tempo da tramitação",
-                    hover_data={"evento": True, "dataHora": "|%Y-%m-%d %H:%M"},
-                )
-                fig_t.update_layout(showlegend=False, yaxis_title=None, xaxis_title=None)
-                st.plotly_chart(fig_t, use_container_width=True)
-
-               with st.expander("Ver eventos (tabela)"):
-    # Nem sempre a API traz o órgão no mesmo campo.
-    colunas_base = ["data", "evento"]
-    coluna_orgao = None
-
-    # Tentamos identificar alguma coluna que represente órgão de destino
-    for cand in ["orgaoDestino.sigla", "siglaOrgao", "siglaOrgaoDestino"]:
-        if cand in tdf.columns:
-            coluna_orgao = cand
-            break
-
-    if coluna_orgao:
-        cols = colunas_base + [coluna_orgao]
-        tabela = tdf[cols].rename(columns={coluna_orgao: "órgão"})
-    else:
-        tabela = tdf[colunas_base]
-
-    st.dataframe(
-        tabela,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-
-    if coluna_orgao:
-        cols = colunas_base + [coluna_orgao]
-        tabela = tdf[cols].rename(columns={coluna_orgao: "órgão"})
-    else:
-        tabela = tdf[colunas_base]
-
-    st.dataframe(
-        tabela,
-        use_container_width=True,
-        hide_index=True,
-    )
-
-            else:
-                st.info("Sem dados de tramitação disponíveis para esta proposição.")
+        else:
+            st.info("Sem dados de tramitação disponíveis para esta proposição.")
 
     except CamaraAPIError as e:
         st.error(str(e))
