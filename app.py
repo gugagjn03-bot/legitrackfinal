@@ -13,7 +13,7 @@ from services.camara import (
     buscar_proposicoes_por_tema,
     detalhes_proposicao,
     tramitacoes,
-    autores_por_uri,
+    autores_por_proposicao,
     CamaraAPIError,
 )
 from utils.transforms import (
@@ -106,19 +106,25 @@ if btn_buscar:
             f"Exibindo as {total_api} primeiras."
         )
 
-        # Enriquecer com autor principal
+               # Enriquecer com autor principal (buscando em /proposicoes/{id}/autores)
         autores: List[str] = []
         partidos: List[str] = []
         ufs: List[str] = []
         tipos_autor: List[str] = []
 
         for _, row in df_api.iterrows():
-            aut_payload = autores_por_uri(row.get("uriAutores", ""))
+            id_prop = row.get("id")
+            if id_prop is None:
+                aut_payload = []
+            else:
+                aut_payload = autores_por_proposicao(int(id_prop))
+
             a = extrair_autor_principal(aut_payload)
             autores.append(a["nome"])
             partidos.append(a["partido"])
             ufs.append(a["uf"])
             tipos_autor.append(a["tipoAutor"])
+
 
         df = df_api.copy()
         df["autor"] = autores
