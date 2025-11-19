@@ -256,16 +256,29 @@ if btn_buscar:
                 fig_t.update_layout(showlegend=False, yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig_t, use_container_width=True)
 
-                with st.expander("Ver eventos (tabela)"):
+               with st.expander("Ver eventos (tabela)"):
     # Nem sempre a API traz o órgão no mesmo campo.
     colunas_base = ["data", "evento"]
     coluna_orgao = None
 
-    # Tentamos achar algum campo que pareça ser o órgão
+    # Tentamos identificar alguma coluna que represente órgão de destino
     for cand in ["orgaoDestino.sigla", "siglaOrgao", "siglaOrgaoDestino"]:
         if cand in tdf.columns:
             coluna_orgao = cand
             break
+
+    if coluna_orgao:
+        cols = colunas_base + [coluna_orgao]
+        tabela = tdf[cols].rename(columns={coluna_orgao: "órgão"})
+    else:
+        tabela = tdf[colunas_base]
+
+    st.dataframe(
+        tabela,
+        use_container_width=True,
+        hide_index=True,
+    )
+
 
     if coluna_orgao:
         cols = colunas_base + [coluna_orgao]
